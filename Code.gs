@@ -9,7 +9,7 @@ const DRY_RUN = true;           // Set to true for testing (logs but no changes)
 
 // Controls how many threads are fetched per search call.
 // API maximum is 500; 200–300 is safer for large accounts to avoid timeouts.
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 400;
 
 // Maximum threads that can be archived or trashed in one batch operation.
 // Gmail enforces a hard limit of 100 — do not increase this value.
@@ -178,11 +178,27 @@ function purge() {
     }
 
   } catch (err) {
-    console.log("Error during purge: " + err);
-    // Emergency retry: In case error happened after preview but no relay was set
-    setPurgeMoreTrigger();  // Extra safety layer
+    const errorMsg = err.toString();
+    console.log("Error during purge: " + errorMsg);
+
+    // Check if we hit the daily Gmail API limit
+    if (errorMsg.indexOf("Service invoked too many times") !== -1 || 
+        errorMsg.indexOf("Rate Limit Exceeded") !== -1) {
+      
+      console.log("CRITICAL: Daily API Quota reached. Stopping autopilot for today.");
+      // We do NOT call setPurgeMoreTrigger() here.
+      // The script will die and wait for the daily 'setPurgeTrigger' anchor to restart tomorrow.
+      
+    } else {
+      // For all other minor errors (timeouts, etc.), continue the relay
+      console.log("Minor error detected. Attempting to continue relay...");
+      setPurgeMoreTrigger(); 
+    }
+    
   } finally {
-    lock.releaseLock();
+    if (lock) {
+      lock.releaseLock();
+    }
   }
 }
 
