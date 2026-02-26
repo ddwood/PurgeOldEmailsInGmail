@@ -188,6 +188,8 @@ function purge() {
       console.log("CRITICAL: Daily API Quota reached. Stopping autopilot for today.");
       // We do NOT call setPurgeMoreTrigger() here.
       // The script will die and wait for the daily 'setPurgeTrigger' anchor to restart tomorrow.
+      // Remove any early relay triggers
+      removePurgeMoreTriggers();
       
     } else {
       // For all other minor errors (timeouts, etc.), continue the relay
